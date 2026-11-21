@@ -12,7 +12,6 @@ SanitizerCoverage** (`-fsanitize-coverage=bb,no-prune,inline-bool-flag,pc-table`
 
 ```
 .
-├── run_all.sh                  # главный скрипт (делает всё по порядку)
 ├── 00_install_deps.sh          # установка зависимостей (Rocky Linux / dnf)
 ├── 01_build_runtime.sh         # сборка runtime-компонента (build/libbbcov.a)
 ├── 02_build_genhtml.sh         # скачивание LCOV 1.16, применение патча,
