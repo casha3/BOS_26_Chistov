@@ -27,11 +27,7 @@ SanitizerCoverage** (`-fsanitize-coverage=bb,no-prune,inline-bool-flag,pc-table`
 │   └── build_project.sh        # сборка/прогон произвольного проекта
 ├── patch/
 │   └── genhtml.patch           # патч genhtml 1.16 (опция --bb-report)
-├── projects/
-│   ├── cjson/                  # тестовый проект 1 (DaveGamble/cJSON)
-│   ├── microtar/               # тестовый проект 2 (rxi/microtar)
-│   └── lab2/                   # пример: C-модель скриптов ЛР2 (run_test.sh
-│                               #   пишет лог команд в output/lab2/report.md)
+├── projects/                   # сюда кладёте свои репозитории (по умолчанию пусто)
 ├── verify/
 │   └── check_compat.sh         # проверка обратной совместимости + отчёты
 └── output/<project>/           # все результаты (создаётся при запуске)
@@ -75,9 +71,6 @@ bash analyze.sh <имя> --bb                 # только патченный 
   `PROJECT_STDIN`, `PROJECT_OUTPUT`); флаги командной строки имеют приоритет.
 - серверы/игры/циклы автоматически ограничены таймаутом `RUN_TIMEOUT`
   (по умолчанию 20 c, переопределяется переменной).
-
-`test_box.sh` остаётся демонстрационной обвязкой для заранее настроенных
-подпроектов (project-box, zlib, openssl).
 
 ### Как запустить для произвольного кода (пошагово)
 
@@ -182,113 +175,33 @@ transcript.log    # журнал
 
 ## Запуск на Rocky Linux (x86_64)
 
-Нужны права root и доступ в интернет (скачиваются пакеты, исходники
-LCOV и два открытых проекта).
+Нужны права root и доступ в интернет (скачиваются пакеты и исходники LCOV).
 
 ```bash
 # 1) закинуть этот каталог на VM, например
 #       scp -r bonus_1 user@rocky:~/
 cd bonus_1
 
-# 2) всё одной командой (включая установку пакетов):
-sudo bash run_all.sh --install
-
-# или по шагам:
+# 2) установить зависимости:
 sudo bash 00_install_deps.sh     # gcc clang llvm git perl-JSON-PP ...
+
+# 3) собрать инструменты:
 bash 01_build_runtime.sh         # libbbcov.a
 bash 02_build_genhtml.sh         # vendor/genhtml + vendor/genhtml_orig
-bash projects/cjson/build_and_run.sh    # сборка/замер проекта 1
-bash projects/microtar/build_and_run.sh # сборка/замер проекта 2
-bash verify/check_compat.sh cjson
-bash verify/check_compat.sh microtar
+
+# 4) проанализировать произвольный репозиторий
+#    (положить клон в projects/<имя> или передать path):
+bash analyze.sh <имя> --bb
 ```
 
-Результаты — в `output/`:
+Результаты — в `output/<имя>/`:
 
 ```bash
-ls output/cjson/
-# coverage.info bb_cov.json html_orig/ html_plain/ html_bb/
+ls output/<имя>/
+# coverage.info bb_cov.json bb_cov_raw.json html_bb/
 # открыть отчёт с метрикой Basic Block Coverage:
-xdg-open output/cjson/html_bb/index.html
+xdg-open output/<имя>/html_bb/index.html
 ```
-
-### Тестирование на стороннем репозитории (project-box)
-
-`test_box.sh` позволяет «на выбор» протестировать любой C-подпроект
-репозитория [TrisH0x2A/project-box](https://github.com/TrisH0x2A/project-box)
-одной командой. Репозиторий клонируется автоматически в
-`test_projects/project-box`.
-
-```bash
-bash test_box.sh --list              # список доступных подпроектов
-bash test_box.sh lexer               # протестировать подпроект (по имени)
-bash test_box.sh compiler
-bash test_box.sh notes
-...
-```
-
-Флаги режима отчёта (перед именем подпроекта):
-
-```bash
-bash test_box.sh --orig zlib   # только оригинальный genhtml (без Basic Blocks)
-bash test_box.sh --bb   zlib   # только патченный genhtml с --bb-report
-bash test_box.sh zlib          # по умолчанию: полный прогон (orig + совместимость + bb)
-```
-
-Для каждого подпроекта заранее описаны `--main`, `--sources`, `--include`,
-`--libs`, `--stdin`/`--tests` (включая подачу данных в stdin и зависимость
-`-lsqlite3`). Результат — `output/box_<подпроект>/` (отчёт с метрикой
-Basic Block Coverage + проверка обратной совместимости).
-
-Проверено на Apple Silicon (реальные числа блоков):
-
-| Подпроект | Basic Blocks (hit/total) | Обратная совместимость |
-|---|---|---|
-| `lexer` (lexical-analyser) | 126/127 = 99.2% | PASS |
-| `sha512` (SHA-512) | 16/46 = 34.8% | PASS |
-| `compiler` (arithmetic-compiler) | 22/69 = 31.9% | PASS |
-| `notes` (Notes Manager, sqlite3) | 45/83 = 54.2% | PASS |
-| `shortener` (url-shortener, sqlite3) | 13/61 = 21.3% | PASS |
-| `scanner` (port-scanner) | 4/54 = 7.4% | PASS |
-| `qr` (QR Generator, qrencode+libpng) | 63/69 = 91.3% | PASS |
-| `tictactoe` (tic-tac-toe server) | 2/104 = 1.9% | PASS |
-| `asteroid` (asteroid-game) | 0/0 (игра-цикл, таймаут) | PASS |
-| `chat` (chat-system server) | 0/0 (сервер, таймаут) | PASS |
-| `ftp` (ftp server) | 0/0 (сервер, таймаут) | PASS |
-| `http` (http-server) | 0/0 (сервер не завершается → таймаут) | PASS |
-| `ping` | не компилируется на macOS (Linux `netinet/icmp.h`) | — |
-
-Замечания:
-- подпроекты-серверы/игры (`http`, `tcp`, `udp`, `chat`, `ftp`,
-  `asteroid`) не завершаются сами — `RUN_TIMEOUT` убивает их, поэтому
-  Basic Blocks могут быть `0/0`;
-- `qr` требует установленных `qrencode` и `libpng`:
-  `brew install qrencode libpng` (пути к Homebrew подставляются
-  автоматически);
-- `ping` использует Linux-only заголовки и на macOS не соберётся;
-- каталоги с пробелом в имени (например `Notes Manager`, `QR Generator`)
-  автоматически копируются во временную папку без пробелов.
-
-### Крупные C-библиотеки: zlib и OpenSSL
-
-`test_box.sh` умеет тестировать и классические библиотеки:
-
-| Команда | Что делает | Результат |
-|---|---|---|
-| `bash test_box.sh zlib` | анализирует скачанный репозиторий zlib по его собственным исполняемым программам: `test/example.c`, `test/minigzip.c`, `examples/zpipe.c` и др. (без добавленных файлов) | **Basic Blocks: 3463/7128 = 48.6%** (объединение программ), PASS |
-| `bash test_box.sh openssl` | `./Configure darwin64-arm64-cc no-shared` + `make build_libs` (инструментирование), затем анализ собственной программы `apps/openssl.c` | **Basic Blocks: 914/118934 = 0.8%** (886 файлов), PASS |
-
-Особенности:
-- zlib: main() берутся из `test/` и `examples/` самого репозитория;
-  флаг `-DZ_HAVE_UNISTD_H` для `gz*`-источников подставляется
-  автоматически.
-- OpenSSL: сборка только через его `./Configure`/`make build_libs`
-  (генерированные заголовки), поэтому выполняется отдельный
-  инструментированный билд (один раз, кэшируется в
-  `test_projects/openssl`); анализируется собственная программа репозитория
-  `apps/openssl.c`.
-- В `bb_cov_finalize.py` символизация PC выполняется порциями (до 1000
-  адресов за вызов `llvm-addr2line`) — для OpenSSL это 120 тыс. блоков.
 
 ## Соответствие формальным требованиям
 
