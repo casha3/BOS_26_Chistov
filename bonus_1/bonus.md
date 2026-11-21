@@ -1484,6 +1484,7 @@ Basic Block Coverage в HTML-отчёты, не меняя поведение б
 +		}
  		write_file_table_entry(*HTML_HANDLE, $base_dir, $filename,
  				       $page_link, @columns);
+ 
 ```
 
 ---

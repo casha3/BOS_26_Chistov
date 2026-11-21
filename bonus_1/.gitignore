@@ -1,0 +1,22 @@
+build/
+output/
+vendor/
+*.profraw
+*.profdata
+projects/cjson/repo/
+projects/microtar/repo/
+projects/cjson/cJSON.c
+projects/cjson/cJSON.h
+projects/microtar/microtar.c
+projects/microtar/microtar.h
+.DS_Store
+.box_work*
+test_projects/
+
+# сторонние клоны (скачиваются на лету) и личные каталоги
+projects/zlib/
+projects/openssl/
+my_lab_4/
+__pycache__/
+*.pyc
+my_file_zapusk.md
