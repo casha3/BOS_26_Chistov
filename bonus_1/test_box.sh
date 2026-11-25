@@ -118,8 +118,17 @@ run_openssl() {
     fi
     # инструментированная сборка libcrypto (один раз)
     if [ ! -f "$ODIR/libcrypto.a" ] || [ -f "$ODIR/.bbcov_rebuild" ]; then
-        echo "==> Configure (darwin64-arm64-cc no-shared, инструментирование)"
-        ( cd "$ODIR" && ./Configure darwin64-arm64-cc no-shared \
+        # таргет ./Configure выбирается по ОС и архитектуре
+        local target
+        case "$(uname -s):$(uname -m)" in
+            Darwin:arm64)   target=darwin64-arm64-cc ;;
+            Darwin:x86_64)  target=darwin64-x86_64-cc ;;
+            Linux:x86_64)   target=linux-x86_64 ;;
+            Linux:aarch64)  target=linux-aarch64 ;;
+            *) echo "ERROR: неподдерживаемая платформа: $(uname -s) $(uname -m)" >&2; exit 1 ;;
+        esac
+        echo "==> Configure ($target no-shared, инструментирование)"
+        ( cd "$ODIR" && ./Configure "$target" no-shared \
               -O0 -g \
               -fprofile-instr-generate \
               -fcoverage-mapping \
