@@ -1,0 +1,44 @@
+{
+  "target": "linux/amd64",
+  "http": "127.0.0.1:56741",
+  "rpc": "127.0.0.1:0",
+
+  "workdir": "@WORKDIR@",
+  "kernel_obj": "@KERNEL_OBJ@",
+  "kernel_src": "@KERNEL_SRC@",
+  "image": "@IMAGE@",
+  "sshkey": "@SSHKEY@",
+  "syzkaller": "@SYZKALLER@",
+
+  "procs": @PROCS@,
+  "sandbox": "none",
+  "type": "qemu",
+
+  "cover": true,
+  "reproduce": @REPRODUCE@,
+  "preserve_corpus": false,
+  "raw_cover": false,
+  "max_crash_logs": 20,
+
+  "experimental": {
+    "cover_edges": false,
+    "focus_areas": [
+      {
+        "name": "mlx4",
+        "filter": {
+          "files": ["^drivers/net/ethernet/mellanox/mlx4/"]
+        },
+        "weight": 1.0
+      }
+    ]
+  },
+
+  "vm": {
+    "count": @VMCOUNT@,
+    "cpu": @VMCPU@,
+    "mem": @VMMEM@,
+    "kernel": "@BZIMAGE@",
+    "cmdline": "@CMDLINE@",
+    "qemu_args": "@QEMU_ARGS@"
+  }
+}

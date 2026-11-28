@@ -1,0 +1,5 @@
+# Контрольный вход через штатное описание syzkaller (любое имя интерфейса)
+r0 = socket$inet(0x2, 0x2, 0x0)
+ioctl$sock_SIOCETHTOOL(r0, 0x8946, &AUTO)
+ioctl$sock_SIOCGIFINDEX(r0, 0x8933, &AUTO)
+close(r0)

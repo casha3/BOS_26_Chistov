@@ -1,0 +1,42 @@
+# Copyright 2026. Apache-2.0 (same as syzkaller).
+#
+# Административная поверхность драйвера mlx4: ioctl-ы, которые попадают
+# в mlx4_en (ethtool_ops, change_mtu, set_mac, ndo_open/ndo_stop, set_rx_mode).
+#
+# Отличие от стандартных описаний syzkaller: имя интерфейса берётся только из
+# списка mlx4-портов. В госте это eth0..eth2 (порядок зависит от того, на каком
+# слоте оказалась карта), поэтому перечислены все три варианта.
+#
+# Файл устанавливается в sys/linux/dev_mlx4.txt и компилируется вместе с
+# остальными описаниями (общее пространство имён, socket.txt подключается
+# автоматически).
+
+include <uapi/linux/if.h>
+include <uapi/linux/sockios.h>
+include <linux/ethtool.h>
+
+mlx4_devnames = "eth0", "eth1", "eth2"
+
+# ifreq_dev_t уже определён в socket.txt (name[IFNAMSIZ] + union + size[IFREQ_SIZE]).
+type mlx4_ifreq_t[ELEM] ifreq_dev_t[mlx4_devnames, ELEM]
+
+# ETHTOOL_* : GDRVINFO / GCOALESCE / SCOALESCE / GRINGPARAM / SRINGPARAM /
+# GCHANNELS / SCHANNELS / GPAUSEPARAM / SPAUSEPARAM / GSTATS / GSSET_INFO /
+# GLINKSETTINGS / GFEATURES и т.д. — всё это union ethtool_cmd_u.
+ioctl$sock_SIOCETHTOOL_mlx4(fd sock, cmd const[SIOCETHTOOL], arg ptr[inout, mlx4_ifreq_t[ptr[inout, ethtool_cmd_u]]])
+
+# ndo_change_mtu -> mlx4_en_change_mtu()
+ioctl$sock_SIOCSIFMTU_mlx4(fd sock, cmd const[SIOCSIFMTU], arg ptr[in, mlx4_ifreq_t[int32]])
+
+# ndo_set_mac_address -> mlx4_en_set_mac()
+ioctl$sock_SIOCSIFHWADDR_mlx4(fd sock, cmd const[SIOCSIFHWADDR], arg ptr[in, mlx4_ifreq_t[mac_addr]])
+
+# ndo_open/ndo_stop -> mlx4_en_start_port()/mlx4_en_stop_port()
+ioctl$sock_SIOCSIFFLAGS_mlx4(fd sock, cmd const[SIOCSIFFLAGS], arg ptr[in, mlx4_ifreq_t[flags[ifru_flags, int16]]])
+
+# ndo_set_rx_mode -> mlx4_en_set_rx_mode() (мультикаст/промиссукус)
+ioctl$sock_SIOCADDMULTI_mlx4(fd sock, cmd const[SIOCADDMULTI], arg ptr[in, mlx4_ifreq_t[mac_addr]])
+ioctl$sock_SIOCDELMULTI_mlx4(fd sock, cmd const[SIOCDELMULTI], arg ptr[in, mlx4_ifreq_t[mac_addr]])
+
+# ndo_set_tx_maxrate / tx queue length
+ioctl$sock_SIOCSIFTXQLEN_mlx4(fd sock, cmd const[SIOCSIFTXQLEN], arg ptr[in, mlx4_ifreq_t[int32]])

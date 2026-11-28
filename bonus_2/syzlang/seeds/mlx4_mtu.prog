@@ -1,0 +1,5 @@
+# ndo_change_mtu: граничные значения MTU на mlx4-порту
+r0 = socket$inet(0x2, 0x2, 0x0)
+ioctl$sock_SIOCSIFMTU_mlx4(r0, 0x8922, &AUTO)
+ioctl$sock_SIOCSIFMTU_mlx4(r0, 0x8922, &AUTO)
+close(r0)
