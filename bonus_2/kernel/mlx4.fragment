@@ -2,21 +2,31 @@
 #  Фрагмент конфигурации: цель фаззинга mlx4 + минимальный гость
 # =====================================================================
 
-# --- PCI и MSI --------------------------------------------------------
+# --- PCI, сетевые устройства и MSI ------------------------------------
+# MLX4_EN зависит от PCI && NETDEVICES && ETHERNET && INET.
 CONFIG_PCI=y
 CONFIG_PCI_MSI=y
+CONFIG_NETDEVICES=y
+CONFIG_ETHERNET=y
 
 # --- Mellanox mlx4 (встроено в ядро, без initramfs) -------------------
 CONFIG_NET_VENDOR_MELLANOX=y
 CONFIG_MLX4_CORE=y
 CONFIG_MLX4_EN=y
 # CONFIG_MLX4_INFINIBAND is not set
-# CONFIG_MLX4_DEBUG is not set
+# MLX4_DEBUG в 7.x имеет default y и prompt только при EXPERT; включаем
+# явно. Вывод активен лишь при debug_level>0, на фаззинг не влияет.
+CONFIG_MLX4_DEBUG=y
+
+# DCB-путь mlx4_en (rtnetlink/ethtool) — дополнительная поверхность.
+CONFIG_DCB=y
+CONFIG_MLX4_EN_DCB=y
 
 # --- Сетевой стек, нужный syzkaller ----------------------------------
 CONFIG_NET=y
 CONFIG_INET=y
-CONFIG_INET6=y
+# IPv6: правильный символ — CONFIG_IPV6 (CONFIG_INET6 не существует).
+CONFIG_IPV6=y
 CONFIG_UNIX=y
 CONFIG_PACKET=y
 CONFIG_NET_DEVLINK=y

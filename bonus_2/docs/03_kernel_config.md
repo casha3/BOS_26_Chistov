@@ -31,11 +31,58 @@
 * **`KASAN`** нужен, чтобы падения были воспроизводимыми и осмысленными
   (use-after-free/OOB), а не «повезло/не повезло».
 
+## Сверка с методикой ИСП РАН и особенностями 7.3.6
+
+Список `./scripts/config` со страницы перенесён полностью, но часть опций в
+7.x уже отсутствует. Чтобы не создавать иллюзию применения, они заменены или
+явно отмечены комментариями в `kernel/lvc.fragment`:
+
+| Опция методики | Что в 7.3.6 |
+|---|---|
+| `DEVKMEM` | удалена из ядра |
+| `DEBUG_INFO_COMPRESSED` | choice → `CONFIG_DEBUG_INFO_COMPRESSED_NONE=y` |
+| `UBSAN_SANITIZE_ALL` | удалена; проверки включаются потиповыми опциями |
+| `UBSAN_MISC` | удалена |
+| `UBSAN_OBJECT_SIZE` | удалена |
+| `UBSAN_SIGNED_OVERFLOW` / `UBSAN_UNSIGNED_OVERFLOW` | заменены на `UBSAN_INTEGER_WRAP`, который `depends on BROKEN` |
+
+Остальные опции (KASAN/KCOV/LOCKDEP/PROVE_*/DEBUG_VM/KMEMLEAK/DEBUG_INFO/
+UBSAN_BOUNDS/UBSAN_SHIFT, отключения DEVMEM/DEVPORT/UPROBE_EVENTS и т.д.)
+применяются как в методике.
+
+### Базовая конфигурация
+
+Методика рекомендует брать за основу production-конфиг. Поддерживается:
+
+```bash
+BASE_CONFIG=/boot/config-$(uname -r) bash 02_build_kernel.sh
+```
+
+Без `BASE_CONFIG` используется `make defconfig` + `kvm_guest.config`
+(воспроизводимо, но это не production-конфиг дистрибутива).
+
+### Дополнительные опции для mlx4
+
+`kernel/mlx4.fragment` дополнен:
+
+* `CONFIG_NETDEVICES=y`, `CONFIG_ETHERNET=y` — без них `MLX4_EN` не виден
+  (зависимость `PCI && NETDEVICES && ETHERNET && INET`);
+* `CONFIG_IPV6=y` вместо ошибочного `CONFIG_INET6`;
+* `CONFIG_DCB=y`, `CONFIG_MLX4_EN_DCB=y` — DCB-путь mlx4_en
+  (rtnetlink/ethtool) как дополнительная поверхность;
+* `CONFIG_MLX4_DEBUG=y` — в 7.x это `default y`, prompt только при
+  `EXPERT`; вывод активен лишь при `debug_level>0`.
+
 ## Проверки после слияния
 
-Скрипт `02_build_kernel.sh` проверяет наличие ключевых символов и падает,
-если `KCOV`, `KASAN`, `MLX4_CORE`, `MLX4_EN` не включились (бывает, если
-фрагмент не применился из-за зависимостей).
+Скрипт `02_build_kernel.sh`:
+
+* падает, если не применились критичные символы (`KCOV`, `KASAN`,
+  `DEBUG_INFO`, `MLX4_CORE/EN`, `NETDEVICES`, `ETHERNET`, `IPV6`, `DCB`,
+  `MLX4_EN_DCB`, ...);
+* сверяет **все** символы из трёх фрагментов с итоговым `.config` и печатает
+  список неприменившихся (нет в ядре, скрыты зависимостями) в
+  `work/logs/fragment_symbols.txt`.
 
 ## Сборка
 

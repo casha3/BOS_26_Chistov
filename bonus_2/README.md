@@ -154,7 +154,10 @@ bash 02_build_kernel.sh
 ```
 
 * `make defconfig` → `make kvm_guest.config` → слияние трёх фрагментов →
-  `make olddefconfig` → проверка ключевых символов → `make -j4 bzImage`.
+  `make olddefconfig` → проверка ключевых символов + сверка всех символов
+  фрагментов с `.config` → `make -j4 bzImage`.
+* Можно взять production-конфиг как основу (рекомендация ИСП РАН):
+  `BASE_CONFIG=/boot/config-$(uname -r) bash 02_build_kernel.sh`.
 * Результат: `work/linux-7.3.6/arch/x86/boot/bzImage`,
   `work/linux-7.3.6/vmlinux`, `work/kernel.config`.
 * Время: 40–100 минут (зависит от vCPU и RAM). Для 4 ГБ:
@@ -513,7 +516,8 @@ bonus_2/
 ## 11. Как менять параметры
 
 * Версии Linux/QEMU/syzkaller — `tools/versions.env`.
-* Набор опций ядра — `kernel/*.fragment`.
+* Набор опций ядра — `kernel/*.fragment`; база — `BASE_CONFIG=...`
+  (по умолчанию `defconfig` + `kvm_guest.config`).
 * Фокус фаззинга — `config/manager.cfg.in` (`focus_areas`).
 * Память/параллелизм — переменные `VMMEM`, `VMCOUNT`, `PROCS`, `REPRODUCE`,
   `JOBS`, `GOMEMLIMIT`.

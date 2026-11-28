@@ -18,7 +18,18 @@ need gcc
 need flex
 need bison
 need bc
+need python3
 need_file "$LINUX_SRC/Makefile" "bash 01_fetch_sources.sh"
+
+# BASE_CONFIG: production-конфиг как основа (рекомендация ИСП РАН).
+# Относительный путь делаем абсолютным до перехода в дерево ядра.
+if [ -n "${BASE_CONFIG:-}" ]; then
+    [ -f "$BASE_CONFIG" ] || die "BASE_CONFIG='$BASE_CONFIG' не найден"
+    case "$BASE_CONFIG" in
+        /*) ;;
+        *)  BASE_CONFIG="$(cd "$(dirname "$BASE_CONFIG")" && pwd)/$(basename "$BASE_CONFIG")" ;;
+    esac
+fi
 
 cd "$LINUX_SRC"
 
@@ -27,8 +38,14 @@ if [ "${CLEAN:-0}" = "1" ]; then
     make -j"$JOBS" mrproper >/dev/null 2>&1 || true
 fi
 
-log "make defconfig + kvm_guest.config"
-make defconfig >"$LOGS/kernel_defconfig.log" 2>&1 || die "make defconfig"
+if [ -n "${BASE_CONFIG:-}" ]; then
+    log "базовый конфиг: $BASE_CONFIG (вместо defconfig)"
+    cp "$BASE_CONFIG" .config || die "не удалось скопировать BASE_CONFIG"
+else
+    log "make defconfig"
+    make defconfig >"$LOGS/kernel_defconfig.log" 2>&1 || die "make defconfig"
+fi
+log "make kvm_guest.config"
 make kvm_guest.config >>"$LOGS/kernel_defconfig.log" 2>&1 || true
 
 log "сливаю фрагменты конфигурации (merge_config.sh)"
@@ -65,9 +82,69 @@ check_opt CONFIG_RANDOMIZE_BASE n
 check_opt CONFIG_MLX4_CORE y
 check_opt CONFIG_MLX4_EN y
 check_opt CONFIG_MLX4_INFINIBAND n
+check_opt CONFIG_MLX4_EN_DCB y
+check_opt CONFIG_DCB y
+check_opt CONFIG_NETDEVICES y
+check_opt CONFIG_ETHERNET y
+check_opt CONFIG_IPV6 y
 check_opt CONFIG_E1000 y
 check_opt CONFIG_ATA_PIIX y
 check_opt CONFIG_DEVTMPFS_MOUNT y
+
+# --- сверка всех символов из фрагментов с итоговым .config -----------
+# Показывает, что реально применилось, а что ядро 7.x не знает или
+# отбросило из-за зависимостей (например, x86-only опции).
+report_fragment_symbols() {
+    local list="$WORK/logs/fragment_symbols.txt"
+    python3 - "$ROOT/kernel/syzkaller.fragment" \
+                "$ROOT/kernel/lvc.fragment" \
+                "$ROOT/kernel/mlx4.fragment" > "$list" <<'PY'
+import re
+import sys
+
+state = {}
+order = []
+for path in sys.argv[1:]:
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            m = re.match(r"^CONFIG_([A-Za-z0-9_]+)=(.*)$", line)
+            if m:
+                sym = "CONFIG_" + m.group(1)
+                if sym not in state:
+                    order.append(sym)
+                state[sym] = m.group(2)
+                continue
+            m = re.match(r"^# CONFIG_([A-Za-z0-9_]+) is not set", line)
+            if m:
+                sym = "CONFIG_" + m.group(1)
+                if sym not in state:
+                    order.append(sym)
+                state[sym] = "n"
+for sym in order:
+    print(sym, state[sym])
+PY
+
+    local total=0 applied=0 missing=""
+    while read -r sym want; do
+        total=$((total + 1))
+        case "$want" in
+            y) grep -q "^${sym}=y" .config ;;
+            n) grep -q "^# ${sym} is not set" .config ;;
+            *) grep -Fq "${sym}=${want}" .config ;;
+        esac && applied=$((applied + 1)) || missing="$missing ${sym}=${want}"
+    done < "$list"
+
+    log "символы из фрагментов: применено $applied из $total"
+    if [ -n "$missing" ]; then
+        warn "не применились (нет в этом ядре / скрыты зависимостями):"
+        local item
+        for item in $missing; do
+            printf '      %s\n' "$item"
+        done
+        warn "список целиком: $list"
+    fi
+}
+report_fragment_symbols
 
 cp .config "$WORK/kernel.config"
 

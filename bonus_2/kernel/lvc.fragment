@@ -3,8 +3,12 @@
 #  https://portal.linuxtesting.ru/LVCFuzzingKernelOptions.html
 #  ("Добавление отладочных опций")
 #
-#  Это дословный перенос списка ./scripts/config из методики в формат
-#  фрагмента .config.  Значения "n" записаны как "# ... is not set".
+#  Это перенос списка ./scripts/config из методики в формат фрагмента
+#  .config.  Значения "n" записаны как "# ... is not set".
+#
+#  ВАЖНО: часть опций методики отсутствует в современных ядрах (7.x).
+#  Они отмечены комментариями ниже, чтобы не создавать иллюзию применения.
+#  Сверено с lib/Kconfig.debug, lib/Kconfig.ubsan и т.п. ядра 7.3.6.
 # =====================================================================
 
 # --- Детекторы и отладка ---------------------------------------------
@@ -55,7 +59,8 @@ CONFIG_GDB_SCRIPTS=y
 # CONFIG_DEBUG_INFO_REDUCED is not set
 CONFIG_UNWINDER_ORC=y
 # CONFIG_RANDOMIZE_BASE is not set
-# CONFIG_DEBUG_INFO_COMPRESSED is not set
+# В 7.x это choice; «не сжимать» = DEBUG_INFO_COMPRESSED_NONE.
+CONFIG_DEBUG_INFO_COMPRESSED_NONE=y
 # CONFIG_DEBUG_INFO_SPLIT is not set
 CONFIG_DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT=y
 # CONFIG_DEBUG_INFO_BTF is not set
@@ -79,22 +84,22 @@ CONFIG_BT_HCIVHCI=y
 
 # --- UBSAN (в объёме методики) ---------------------------------------
 CONFIG_UBSAN=y
-CONFIG_UBSAN_SANITIZE_ALL=y
+# UBSAN_SANITIZE_ALL: удалён; в 7.x проверки включаются потиповыми опциями.
 # CONFIG_UBSAN_TRAP is not set
-# CONFIG_UBSAN_MISC is not set
+# UBSAN_MISC: удалён из ядра.
 CONFIG_UBSAN_BOUNDS=y
 CONFIG_UBSAN_SHIFT=y
 # CONFIG_UBSAN_DIV_ZERO is not set
 # CONFIG_UBSAN_BOOL is not set
-# CONFIG_UBSAN_OBJECT_SIZE is not set
-# CONFIG_UBSAN_SIGNED_OVERFLOW is not set
-# CONFIG_UBSAN_UNSIGNED_OVERFLOW is not set
+# UBSAN_OBJECT_SIZE: удалён из ядра.
+# UBSAN_SIGNED_OVERFLOW / UBSAN_UNSIGNED_OVERFLOW: заменены на
+# UBSAN_INTEGER_WRAP, который depends on BROKEN и в фаззинг-ядре недоступен.
 # CONFIG_UBSAN_ENUM is not set
 # CONFIG_UBSAN_ALIGNMENT is not set
 
 # --- Отключение нежелательных интерфейсов -----------------------------
 # CONFIG_DEVMEM is not set
-# CONFIG_DEVKMEM is not set
+# DEVKMEM: опция удалена из ядра (начиная с 5.13 её не существует).
 # CONFIG_DEVPORT is not set
 # CONFIG_UPROBE_EVENTS is not set
 # CONFIG_MODULE_FORCE_UNLOAD is not set
